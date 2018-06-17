@@ -1,0 +1,71 @@
+---
+title: "HAR Analysis of Weight Lifting Exercises: a Random Forests Predictive Model"
+author: "Justin Papreck"
+date: "June 16, 2018"
+html_document:
+keep_md: true
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(ggplot2)
+library(randomForest)
+set.seed(11172)
+
+DatTrain = read.csv("C:/Users/justi/Desktop/Coursera R/HAR/pml-training.csv", na.strings = c("","NA"))
+DatTest = read.csv("C:/Users/justi/Desktop/Coursera R/HAR/pml-testing.csv", na.strings = c("","NA"))
+```
+## Introduction
+  Human Activity Recognition, HAR, has provided an abundance of information available to data scientists interested in questions related data from simple to complex human activity patterns and behaviors. In this study, the data were collected from individuals doing 10 sets of dumbell exercises in 5 different ways. The first class of data was the appropriate method for lifting the dumbell, but each other class of data follows a specific pattern to which the dumbell was lifted inappropriately. By accounting the different parameters from the data collected, we will attempt to establish a model to predict how the user is lifting the weight, which could have an impact in delivering immediate results to let a potential weight lifter know if they are appropriately lifting, or how they need to correct their movement. 
+  
+## Pre-Processing
+  Upon the exploratory analysis of the data, it was evident that much of the collected data were incomplete. Furthermore, the class of data in each of the fields was different: a mix of integer, numerical, and factor variables. To clean the data, all of the columns without collected data were removed, as well as were the data such as timestamps for collected data, the names of the users, and the numerical values for the collection. After removing these columns, the data were split into two groups for training and validation of the predictive model.   
+```{r Cleaning, echo=FALSE}
+NAs <- sapply(DatTrain, function(y) sum(length(which(is.na(y))))>0)
+NAframe <- data.frame(NAs)
+DatTrain <- DatTrain[,!NAframe$NAs]
+DatTrain <- DatTrain[-c(1:5)]
+DatTrain[1:54] <- sapply(DatTrain[1:54], as.numeric)
+
+NAsTest <- sapply(DatTest, function(y) sum(length(which(is.na(y))))>0)
+NAframeTest <- data.frame(NAsTest)
+DatTest <- DatTest[,!NAframeTest$NAsTest]
+DatTest <- DatTest[,-c(1:5)]
+DatTest[1:54] <- sapply(DatTest[1:54], as.numeric)
+```
+## Validation 
+  The data was broken into two subsets, one for training, and one for validation. To establish a validation model, 30% of the training data were separated by 'Classe' to create a Validation Test data set.  These data were put aside until the testing of the predictive model. 
+
+```{r Subsets, echo = FALSE}
+Subsetter <- createDataPartition(DatTrain$classe, p=0.7, list = FALSE)
+TrainingData <- DatTrain[Subsetter,]
+ValidationData <- DatTrain[-Subsetter,]
+```
+## Training Model
+  In this analysis, random forests were used to train and create a predictive model. Prior to the use of random forests, recursive partitioning was also used to establish a model with cross-validation. After the initial runs through with recursive partitioning, the validation had a low accuracy, and therefore opting for the more computationally demanding random forest was a better option. The use random forests typically yields the best output in machine learning models. To assess the accuracy of the predictive model, the training set was compared with the validation data and passed through a confusion matrix.  
+
+```{r RandomTrees, echo = FALSE}
+GrowTrees <- randomForest(formula = classe~., data = TrainingData, ntree = 250, allowParallel = TRUE)
+print(GrowTrees)
+
+PredictTrees <- predict(GrowTrees, newdata = ValidationData, type='class')
+ConfusedTrees <- confusionMatrix(PredictTrees, ValidationData$classe)
+print(ConfusedTrees)
+print(ConfusedTrees$overall["Accuracy"])
+```
+## Results
+  The estimated rate of error in the training model was 0.29%. When run through the validation testing, the accuracy of the confusion matrix was 99.85% accurate with a 95% confidence interval of .9971 to .9993. The p-value for this analysis was on the order of 10^-16, and thus a significant finding. This just means that the predictive ability of this model is very accurate according to the validation data provided, but this does not comment on any potential over-fitting.
+
+```{r Prediction, echo=FALSE}
+TestPrediction <- predict(GrowTrees, newdata = DatTest, type='class')
+print(TestPrediction)
+```
+## Prediction
+  Finally, the model was used to make predictions from the set of test data from Uh, et al.  
+  
+## Acknowledgements
+  This model would not have been possible without the generous allowance for Coursera's Data Science Specialization through Johns Hopkins University by Velloso, et al. and Groupware@LES.
+  
+  Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
